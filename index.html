@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Portfolio Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="search-section">
+                <div class="search-container">
+                    <input type="text" id="searchAssets" placeholder="🔍 Search assets, stocks, crypto..." class="search-input">
+                    <button class="search-btn">Search</button>
+                </div>
+                <div class="quick-add">
+                    <button class="quick-btn" onclick="showAddAssetModal()">+ Quick Add</button>
+                </div>
+            </div>
+            <div class="title-section">
+                <h1>💼 Portfolio Dashboard</h1>
+                <p class="subtitle">Manage your investments with precision</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+        <!-- Left Sidebar -->
+        <aside class="sidebar">
+            <!-- Portfolio Overview -->
+            <div class="card overview-card">
+                <h3>📊 Portfolio Overview</h3>
+                <div class="portfolio-stats">
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalValue">$0.00</span>
+                        <span class="stat-label">Total Value</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalGainLoss">+$0.00</span>
+                        <span class="stat-label">Total P&L</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalAssets">0</span>
+                        <span class="stat-label">Assets</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="totalTrades">0</span>
+                        <span class="stat-label">Trades</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <h3>⚡ Quick Actions</h3>
+                <div class="quick-actions">
+                    <button class="action-btn buy-btn" onclick="showTradeModal('buy')">
+                        📈 Buy Asset
+                    </button>
+                    <button class="action-btn sell-btn" onclick="showTradeModal('sell')">
+                        📉 Sell Asset
+                    </button>
+                    <button class="action-btn" onclick="showTaxCalculator()">
+                        🧮 Tax Calculator
+                    </button>
+                    <button class="action-btn" onclick="exportData()">
+                        📊 Export Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top Performers Chart -->
+            <div class="card chart-card">
+                <h3>🏆 Top 2 Performers</h3>
+                <div class="chart-container">
+                    <canvas id="performersChart"></canvas>
+                </div>
+                <div id="chartLegend" class="chart-legend"></div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <section class="main-content">
+            <!-- Add Asset Section -->
+            <div class="card add-asset-card">
+                <h3>➕ Add New Asset</h3>
+                <form id="addAssetForm" class="asset-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Asset Name</label>
+                            <input type="text" id="assetName" placeholder="e.g., Apple Inc." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Symbol</label>
+                            <input type="text" id="assetSymbol" placeholder="e.g., AAPL" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Quantity</label>
+                            <input type="number" id="assetQuantity" placeholder="100" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Price per Unit ($)</label>
+                            <input type="number" id="assetPrice" step="0.01" placeholder="150.00" required>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Asset Type</label>
+                            <select id="assetType" required>
+                                <option value="">Select Type</option>
+                                <option value="stock">Stock</option>
+                                <option value="crypto">Cryptocurrency</option>
+                                <option value="bond">Bond</option>
+                                <option value="etf">ETF</option>
+                                <option value="mutual-fund">Mutual Fund</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Purchase Date</label>
+                            <input type="date" id="purchaseDate" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary">Add to Portfolio</button>
+                </form>
+            </div>
+
+            <!-- Assets List -->
+            <div class="card assets-card">
+                <div class="card-header">
+                    <h3>📋 Your Assets</h3>
+                    <div class="header-controls">
+                        <select id="sortBy" class="sort-select">
+                            <option value="value">Sort by Value</option>
+                            <option value="performance">Sort by Performance</option>
+                            <option value="name">Sort by Name</option>
+                        </select>
+                        <button class="refresh-btn" onclick="refreshPrices()">🔄 Refresh</button>
+                    </div>
+                </div>
+                <div id="assetsList" class="assets-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">📈</div>
+                        <h4>No assets yet</h4>
+                        <p>Add your first asset to start tracking your portfolio</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Panel -->
+        <aside class="right-panel">
+            <!-- Recent Trades -->
+            <div class="card trades-card">
+                <h3>📝 Recent Trades</h3>
+                <div id="tradesList" class="trades-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">💱</div>
+                        <p>No trades yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Market Summary -->
+            <div class="card market-card">
+                <h3>📊 Market Summary</h3>
+                <div class="market-indicators">
+                    <div class="indicator">
+                        <span class="indicator-label">S&P 500</span>
+                        <span class="indicator-value positive">+0.45%</span>
+                    </div>
+                    <div class="indicator">
+                        <span class="indicator-label">NASDAQ</span>
+                        <span class="indicator-value positive">+0.32%</span>
+                    </div>
+                    <div class="indicator">
+                        <span class="indicator-label">DOW</span>
+                        <span class="indicator-value negative">-0.12%</span>
+                    </div>
+                    <div class="indicator">
+                        <span class="indicator-label">BTC</span>
+                        <span class="indicator-value positive">+2.15%</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <!-- Trade Modal -->
+    <div id="tradeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="tradeModalTitle">Trade Asset</h3>
+                <button class="close-btn" onclick="closeModal('tradeModal')">&times;</button>
+            </div>
+            <form id="tradeForm">
+                <div class="form-group">
+                    <label>Select Asset</label>
+                    <select id="tradeAssetSelect" required>
+                        <option value="">Choose an asset</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="tradeQuantity" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price per Unit ($)</label>
+                        <input type="number" id="tradePrice" step="0.01" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notes (Optional)</label>
+                    <textarea id="tradeNotes" placeholder="Add any notes about this trade..."></textarea>
+                </div>
+                <input type="hidden" id="tradeType">
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('tradeModal')">Cancel</button>
+                    <button type="submit" class="btn-primary" id="tradeSubmitBtn">Execute Trade</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tax Calculator Modal -->
+    <div id="taxModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🧮 Tax Calculator</h3>
+                <button class="close-btn" onclick="closeModal('taxModal')">&times;</button>
+            </div>
+            <div class="tax-calculator">
+                <div class="form-group">
+                    <label>Tax Year</label>
+                    <select id="taxYear">
+                        <option value="2024">2024</option>
+                        <option value="2023">2023</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Income Bracket</label>
+                    <select id="incomeBracket">
+                        <option value="0">$0 - $10,275 (10%)</option>
+                        <option value="10275">$10,275 - $41,775 (12%)</option>
+                        <option value="41775">$41,775 - $89,450 (22%)</option>
+                        <option value="89450">$89,450 - $190,750 (24%)</option>
+                        <option value="190750">$190,750+ (32%)</option>
+                    </select>
+                </div>
+                <div id="taxResults" class="tax-results">
+                    <div class="tax-summary">
+                        <div class="tax-item">
+                            <span>Short-term Gains:</span>
+                            <span id="shortTermGains">$0.00</span>
+                        </div>
+                        <div class="tax-item">
+                            <span>Long-term Gains:</span>
+                            <span id="longTermGains">$0.00</span>
+                        </div>
+                        <div class="tax-item">
+                            <span>Estimated Tax:</span>
+                            <span id="estimatedTax">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="calculateTax()">Calculate Tax</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
