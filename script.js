@@ -13,6 +13,7 @@ class FinancialDashboard {
         this.updateDisplay();
         this.updateChart();
         this.setCurrentDate();
+        this.simulateMarketData();
     }
 
     bindEvents() {
@@ -20,6 +21,11 @@ class FinancialDashboard {
         document.getElementById('addAssetForm').addEventListener('submit', (e) => {
             e.preventDefault();
             this.addAsset();
+        });
+
+        document.getElementById('quickAddForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.quickAddAsset();
         });
 
         document.getElementById('tradeForm').addEventListener('submit', (e) => {
@@ -52,11 +58,71 @@ class FinancialDashboard {
         });
     }
 
+    // Data persistence
+    saveData() {
+        try {
+            localStorage.setItem('portfolio_assets', JSON.stringify(this.assets));
+            localStorage.setItem('portfolio_trades', JSON.stringify(this.trades));
+        } catch (error) {
+            console.warn('Could not save data to localStorage:', error);
+        }
+    }
+
+    loadData(key) {
+        try {
+            const data = localStorage.getItem(key);
+            return data ? JSON.parse(data) : null;
+        } catch (error) {
+            console.warn('Could not load data from localStorage:', error);
+            return null;
+        }
+    }
+
+    // Helper functions
     setCurrentDate() {
         const today = new Date().toISOString().split('T')[0];
         document.getElementById('purchaseDate').value = today;
     }
 
+    getFormData(formId) {
+        const form = document.getElementById(formId);
+        const formData = new FormData(form);
+        const data = {};
+        
+        // Handle different form types
+        if (formId === 'addAssetForm') {
+            data.name = document.getElementById('assetName').value.trim();
+            data.symbol = document.getElementById('assetSymbol').value.trim().toUpperCase();
+            data.quantity = parseFloat(document.getElementById('assetQuantity').value);
+            data.price = parseFloat(document.getElementById('assetPrice').value);
+            data.type = document.getElementById('assetType').value;
+            data.purchaseDate = document.getElementById('purchaseDate').value;
+        } else if (formId === 'quickAddForm') {
+            data.symbol = document.getElementById('quickSymbol').value.trim().toUpperCase();
+            data.quantity = parseFloat(document.getElementById('quickQuantity').value);
+            data.price = parseFloat(document.getElementById('quickPrice').value);
+            data.name = data.symbol; // Use symbol as name for quick add
+            data.type = 'stock'; // Default type
+            data.purchaseDate = new Date().toISOString().split('T')[0];
+        } else if (formId === 'tradeForm') {
+            data.assetSelect = document.getElementById('tradeAssetSelect').value;
+            data.quantity = parseFloat(document.getElementById('tradeQuantity').value);
+            data.price = parseFloat(document.getElementById('tradePrice').value);
+            data.notes = document.getElementById('tradeNotes').value.trim();
+            data.type = document.getElementById('tradeType').value;
+        }
+        
+        return data;
+    }
+
+    resetForm(formId) {
+        document.getElementById(formId).reset();
+        if (formId === 'addAssetForm') {
+            this.setCurrentDate();
+        }
+    }
+
+    // Asset management
     addAsset() {
         const formData = this.getFormData('addAssetForm');
         
@@ -66,7 +132,7 @@ class FinancialDashboard {
 
         // Check if asset already exists
         const existingAsset = this.assets.find(asset => 
-            asset.symbol.toUpperCase() === formData.symbol.toUpperCase()
+            asset.symbol === formData.symbol
         );
 
         if (existingAsset) {
@@ -86,7 +152,7 @@ class FinancialDashboard {
             const asset = {
                 id: Date.now(),
                 name: formData.name,
-                symbol: formData.symbol.toUpperCase(),
+                symbol: formData.symbol,
                 type: formData.type,
                 quantity: formData.quantity,
                 avgPrice: formData.price,
@@ -108,8 +174,73 @@ class FinancialDashboard {
         this.simulatePriceUpdates();
     }
 
+    quickAddAsset() {
+        const formData = this.getFormData('quickAddForm');
+        
+        if (!this.validateQuickAddForm(formData)) {
+            return;
+        }
+
+        // Check if asset already exists
+        const existingAsset = this.assets.find(asset => 
+            asset.symbol === formData.symbol
+        );
+
+        if (existingAsset) {
+            // Update existing asset
+            const additionalInvestment = formData.quantity * formData.price;
+            const newTotalQuantity = existingAsset.quantity + formData.quantity;
+            const newTotalInvestment = existingAsset.totalInvested + additionalInvestment;
+            
+            existingAsset.quantity = newTotalQuantity;
+            existingAsset.avgPrice = newTotalInvestment / newTotalQuantity;
+            existingAsset.totalInvested = newTotalInvestment;
+            existingAsset.lastUpdated = new Date().toISOString();
+            
+            this.showNotification(`Updated ${formData.symbol} position`, 'success');
+        } else {
+            // Create new asset
+            const asset = {
+                id: Date.now(),
+                name: formData.name,
+                symbol: formData.symbol,
+                type: formData.type,
+                quantity: formData.quantity,
+                avgPrice: formData.price,
+                currentPrice: formData.price,
+                totalInvested: formData.quantity * formData.price,
+                purchaseDate: formData.purchaseDate,
+                lastUpdated: new Date().toISOString(),
+                performance: 0
+            };
+            
+            this.assets.push(asset);
+            this.showNotification(`Added ${formData.symbol} to portfolio`, 'success');
+        }
+
+        this.saveData();
+        this.updateDisplay();
+        this.updateChart();
+        this.closeModal('addAssetModal');
+        this.simulatePriceUpdates();
+    }
+
     validateAssetForm(formData) {
-        if (!formData.name || !formData.symbol || !formData.quantity || !formData.price) {
+        if (!formData.name || !formData.symbol || !formData.quantity || !formData.price || !formData.type) {
+            this.showNotification('Please fill in all required fields', 'error');
+            return false;
+        }
+
+        if (formData.quantity <= 0 || formData.price <= 0) {
+            this.showNotification('Quantity and price must be positive numbers', 'error');
+            return false;
+        }
+
+        return true;
+    }
+
+    validateQuickAddForm(formData) {
+        if (!formData.symbol || !formData.quantity || !formData.price) {
             this.showNotification('Please fill in all required fields', 'error');
             return false;
         }
@@ -127,6 +258,9 @@ class FinancialDashboard {
             const asset = this.assets.find(a => a.id === id);
             this.assets = this.assets.filter(asset => asset.id !== id);
             
+            // Remove related trades
+            this.trades = this.trades.filter(trade => trade.assetId !== id);
+            
             this.saveData();
             this.updateDisplay();
             this.updateChart();
@@ -135,7 +269,32 @@ class FinancialDashboard {
         }
     }
 
+    editAsset(id) {
+        const asset = this.assets.find(a => a.id === id);
+        if (!asset) return;
+
+        // Populate form with existing data
+        document.getElementById('assetName').value = asset.name;
+        document.getElementById('assetSymbol').value = asset.symbol;
+        document.getElementById('assetQuantity').value = asset.quantity;
+        document.getElementById('assetPrice').value = asset.avgPrice;
+        document.getElementById('assetType').value = asset.type;
+        document.getElementById('purchaseDate').value = asset.purchaseDate;
+
+        this.currentEditingAsset = id;
+        
+        // Scroll to form
+        document.querySelector('.add-asset-card').scrollIntoView({ behavior: 'smooth' });
+        this.showNotification('Asset loaded for editing', 'success');
+    }
+
+    // Trading functions
     showTradeModal(type) {
+        if (this.assets.length === 0) {
+            this.showNotification('Add some assets first to start trading', 'warning');
+            return;
+        }
+
         const modal = document.getElementById('tradeModal');
         const title = document.getElementById('tradeModalTitle');
         const submitBtn = document.getElementById('tradeSubmitBtn');
@@ -195,6 +354,8 @@ class FinancialDashboard {
             
             if (asset.quantity === 0) {
                 this.removeAsset(asset.id);
+                this.closeModal('tradeModal');
+                return;
             }
         }
 
@@ -221,6 +382,7 @@ class FinancialDashboard {
             ).join('');
     }
 
+    // Search and sort functions
     searchAssets(query) {
         const filteredAssets = this.assets.filter(asset =>
             asset.name.toLowerCase().includes(query.toLowerCase()) ||
@@ -251,6 +413,7 @@ class FinancialDashboard {
         this.displayAssets(sortedAssets);
     }
 
+    // Display functions
     updateDisplay() {
         this.displayAssets(this.assets);
         this.displayTrades();
@@ -350,13 +513,6 @@ class FinancialDashboard {
             sum + asset.totalInvested, 0);
         
         const totalGainLoss = totalValue - totalInvested;
-        
-        const bestPerformer = this.assets.length > 0 ? 
-            this.assets.reduce((best, asset) => {
-                const profit = ((asset.currentPrice - asset.avgPrice) / asset.avgPrice) * 100;
-                const bestProfit = best ? ((best.currentPrice - best.avgPrice) / best.avgPrice) * 100 : -Infinity;
-                return profit > bestProfit ? asset : best;
-            }, null) : null;
 
         // Update display
         document.getElementById('totalValue').textContent = `$${totalValue.toFixed(2)}`;
@@ -366,8 +522,6 @@ class FinancialDashboard {
             `stat-value ${totalGainLoss >= 0 ? 'positive' : 'negative'}`;
         document.getElementById('totalAssets').textContent = this.assets.length;
         document.getElementById('totalTrades').textContent = this.trades.length;
-        document.getElementById('bestPerformer').textContent = 
-            bestPerformer ? `${bestPerformer.symbol} (+${bestPerformer.performance.toFixed(1)}%)` : '-';
     }
 
     updateChart() {
@@ -396,7 +550,7 @@ class FinancialDashboard {
             .slice(0, 2);
 
         const data = {
-            labels: sortedAssets.map(asset => `${asset.symbol} ($${asset.currentValue.toFixed(0)})`),
+            labels: sortedAssets.map(asset => `${asset.symbol} (${asset.currentValue.toFixed(0)})`),
             datasets: [{
                 data: sortedAssets.map(asset => asset.currentValue),
                 backgroundColor: [
@@ -451,6 +605,39 @@ class FinancialDashboard {
         });
     }
 
+    // Modal functions
+    showModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('active');
+        document.body.style.overflow = 'auto';
+        
+        // Reset forms when closing modals
+        if (modalId === 'addAssetModal') {
+            document.getElementById('quickAddForm').reset();
+        } else if (modalId === 'tradeModal') {
+            document.getElementById('tradeForm').reset();
+        }
+    }
+
+    closeAllModals() {
+        const modals = document.querySelectorAll('.modal');
+        modals.forEach(modal => {
+            modal.classList.remove('active');
+        });
+        document.body.style.overflow = 'auto';
+    }
+
+    showAddAssetModal() {
+        this.showModal('addAssetModal');
+    }
+
+    // Tax calculation functions
     showTaxCalculator() {
         this.calculateTaxData();
         this.showModal('taxModal');
@@ -481,9 +668,9 @@ class FinancialDashboard {
 
         // Update tax display
         document.getElementById('shortTermGains').textContent = 
-            `${shortTermGains >= 0 ? '+' : ''}$${shortTermGains.toFixed(2)}`;
+            `${shortTermGains >= 0 ? '+' : ''}${shortTermGains.toFixed(2)}`;
         document.getElementById('longTermGains').textContent = 
-            `${longTermGains >= 0 ? '+' : ''}$${longTermGains.toFixed(2)}`;
+            `${longTermGains >= 0 ? '+' : ''}${longTermGains.toFixed(2)}`;
     }
 
     calculateTax() {
@@ -499,7 +686,7 @@ class FinancialDashboard {
         const longTermTax = Math.max(0, longTermGains * longTermRate);
         const totalTax = shortTermTax + longTermTax;
 
-        document.getElementById('estimatedTax').textContent = `$${totalTax.toFixed(2)}`;
+        document.getElementById('estimatedTax').textContent = `${totalTax.toFixed(2)}`;
         
         this.showNotification('Tax calculation updated', 'success');
     }
@@ -522,6 +709,7 @@ class FinancialDashboard {
         return 0.20;
     }
 
+    // Price simulation functions
     refreshPrices() {
         const button = document.querySelector('.refresh-btn');
         button.classList.add('loading');
@@ -545,4 +733,120 @@ class FinancialDashboard {
         this.updateDisplay();
         this.updateChart();
     }
+
+    simulateMarketData() {
+        // Simulate market indicators with random changes
+        setInterval(() => {
+            const indicators = document.querySelectorAll('.indicator-value');
+            indicators.forEach(indicator => {
+                const change = (Math.random() - 0.5) * 2; // -1% to +1%
+                const isPositive = change >= 0;
+                indicator.textContent = `${isPositive ? '+' : ''}${change.toFixed(2)}%`;
+                indicator.className = `indicator-value ${isPositive ? 'positive' : 'negative'}`;
+            });
+        }, 10000); // Update every 10 seconds
+    }
+
+    // Export functionality
+    exportData() {
+        try {
+            const data = {
+                assets: this.assets,
+                trades: this.trades,
+                exportDate: new Date().toISOString(),
+                totalValue: this.assets.reduce((sum, asset) => sum + (asset.quantity * asset.currentPrice), 0),
+                totalInvested: this.assets.reduce((sum, asset) => sum + asset.totalInvested, 0)
+            };
+
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `portfolio_export_${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            this.showNotification('Portfolio data exported successfully', 'success');
+        } catch (error) {
+            console.error('Export failed:', error);
+            this.showNotification('Export failed. Please try again.', 'error');
+        }
+    }
+
+    // Notification system
+    showNotification(message, type = 'success') {
+        const container = document.getElementById('notificationContainer');
+        
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        
+        // Add click to dismiss
+        notification.addEventListener('click', () => {
+            notification.remove();
+        });
+        
+        container.appendChild(notification);
+        
+        // Auto remove after 4 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 4000);
+    }
+
+    // Import functionality
+    importData(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                
+                if (data.assets && Array.isArray(data.assets)) {
+                    this.assets = data.assets;
+                }
+                
+                if (data.trades && Array.isArray(data.trades)) {
+                    this.trades = data.trades;
+                }
+                
+                this.saveData();
+                this.updateDisplay();
+                this.updateChart();
+                
+                this.showNotification('Portfolio data imported successfully', 'success');
+            } catch (error) {
+                console.error('Import failed:', error);
+                this.showNotification('Import failed. Please check the file format.', 'error');
+            }
+        };
+        reader.readAsText(file);
+    }
 }
+
+// Initialize the dashboard when the page loads
+let dashboard;
+document.addEventListener('DOMContentLoaded', () => {
+    dashboard = new FinancialDashboard();
+});
+
+// Add file import functionality
+document.addEventListener('DOMContentLoaded', () => {
+    // Create hidden file input for import
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json';
+    fileInput.style.display = 'none';
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            dashboard.importData(e.target.files[0]);
+        }
+    });
+    document.body.appendChild(fileInput);
+    
+    // Add import button functionality (you can add this to the UI if needed)
+    window.importData = () => {
+        fileInput.click();
+    };
+});
