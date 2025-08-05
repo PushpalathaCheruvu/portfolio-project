@@ -14,10 +14,10 @@
             <div class="search-section">
                 <div class="search-container">
                     <input type="text" id="searchAssets" placeholder="🔍 Search assets, stocks, crypto..." class="search-input">
-                    <button class="search-btn">Search</button>
+                    <button class="search-btn" onclick="dashboard.searchAssets(document.getElementById('searchAssets').value)">Search</button>
                 </div>
                 <div class="quick-add">
-                    <button class="quick-btn" onclick="showAddAssetModal()">+ Quick Add</button>
+                    <button class="quick-btn" onclick="dashboard.showAddAssetModal()">+ Quick Add</button>
                 </div>
             </div>
             <div class="title-section">
@@ -58,16 +58,16 @@
             <div class="card">
                 <h3>⚡ Quick Actions</h3>
                 <div class="quick-actions">
-                    <button class="action-btn buy-btn" onclick="showTradeModal('buy')">
+                    <button class="action-btn buy-btn" onclick="dashboard.showTradeModal('buy')">
                         📈 Buy Asset
                     </button>
-                    <button class="action-btn sell-btn" onclick="showTradeModal('sell')">
+                    <button class="action-btn sell-btn" onclick="dashboard.showTradeModal('sell')">
                         📉 Sell Asset
                     </button>
-                    <button class="action-btn" onclick="showTaxCalculator()">
+                    <button class="action-btn" onclick="dashboard.showTaxCalculator()">
                         🧮 Tax Calculator
                     </button>
-                    <button class="action-btn" onclick="exportData()">
+                    <button class="action-btn" onclick="dashboard.exportData()">
                         📊 Export Data
                     </button>
                 </div>
@@ -102,7 +102,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>Quantity</label>
-                            <input type="number" id="assetQuantity" placeholder="100" required>
+                            <input type="number" id="assetQuantity" placeholder="100" step="0.01" required>
                         </div>
                         <div class="form-group">
                             <label>Price per Unit ($)</label>
@@ -140,7 +140,7 @@
                             <option value="performance">Sort by Performance</option>
                             <option value="name">Sort by Name</option>
                         </select>
-                        <button class="refresh-btn" onclick="refreshPrices()">🔄 Refresh</button>
+                        <button class="refresh-btn" onclick="dashboard.refreshPrices()">🔄 Refresh</button>
                     </div>
                 </div>
                 <div id="assetsList" class="assets-list">
@@ -191,12 +191,42 @@
         </aside>
     </main>
 
+    <!-- Add Asset Modal -->
+    <div id="addAssetModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ Quick Add Asset</h3>
+                <button class="close-btn" onclick="dashboard.closeModal('addAssetModal')">&times;</button>
+            </div>
+            <form id="quickAddForm">
+                <div class="form-group">
+                    <label>Symbol</label>
+                    <input type="text" id="quickSymbol" placeholder="e.g., AAPL" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Quantity</label>
+                        <input type="number" id="quickQuantity" step="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Price ($)</label>
+                        <input type="number" id="quickPrice" step="0.01" required>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="dashboard.closeModal('addAssetModal')">Cancel</button>
+                    <button type="submit" class="btn-primary">Add Asset</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Trade Modal -->
     <div id="tradeModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h3 id="tradeModalTitle">Trade Asset</h3>
-                <button class="close-btn" onclick="closeModal('tradeModal')">&times;</button>
+                <button class="close-btn" onclick="dashboard.closeModal('tradeModal')">&times;</button>
             </div>
             <form id="tradeForm">
                 <div class="form-group">
@@ -208,7 +238,7 @@
                 <div class="form-row">
                     <div class="form-group">
                         <label>Quantity</label>
-                        <input type="number" id="tradeQuantity" required>
+                        <input type="number" id="tradeQuantity" step="0.01" required>
                     </div>
                     <div class="form-group">
                         <label>Price per Unit ($)</label>
@@ -221,7 +251,7 @@
                 </div>
                 <input type="hidden" id="tradeType">
                 <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="closeModal('tradeModal')">Cancel</button>
+                    <button type="button" class="btn-secondary" onclick="dashboard.closeModal('tradeModal')">Cancel</button>
                     <button type="submit" class="btn-primary" id="tradeSubmitBtn">Execute Trade</button>
                 </div>
             </form>
@@ -233,7 +263,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>🧮 Tax Calculator</h3>
-                <button class="close-btn" onclick="closeModal('taxModal')">&times;</button>
+                <button class="close-btn" onclick="dashboard.closeModal('taxModal')">&times;</button>
             </div>
             <div class="tax-calculator">
                 <div class="form-group">
@@ -264,15 +294,19 @@
                             <span id="longTermGains">$0.00</span>
                         </div>
                         <div class="tax-item">
+                            
                             <span>Estimated Tax:</span>
                             <span id="estimatedTax">$0.00</span>
                         </div>
                     </div>
                 </div>
-                <button class="btn-primary" onclick="calculateTax()">Calculate Tax</button>
+                <button class="btn-primary" onclick="dashboard.calculateTax()">Calculate Tax</button>
             </div>
         </div>
     </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer" class="notification-container"></div>
 
     <script src="script.js"></script>
 </body>
